@@ -40,7 +40,7 @@ class RobotManager:
     def _gat_model_info_from_config(self):
         """Initial model"""
         for candidate in config["model"]["MODEL_LIST"]:
-            if candidate["CLOUD_MODEL"] in config["model"]["MODEL_SELECT"]:
+            if candidate["CLOUD_MODEL"] == config["model"]["MODEL_SELECT"]:
                 if candidate["CLOUD_TYPE"] == "azure":
                     model_client = AzureOpenAIServerModel(
                         model_id=config["model"]["MODEL_SELECT"],
@@ -121,13 +121,20 @@ class RobotManager:
         """
         self.robot_profile = convert_yaml_to_json(config["profile"]["PATH"])
         
-        robot_tools = self.robot_profile["robot_tools"]
-        self.tools_path = robot_tools
-        robot_tools_mcp = (robot_tools.split('.'))[0]+"_mcp.py"
-        print(robot_tools.split('.'), robot_tools_mcp)
+        robot_tools_script = self.robot_profile["robot_tools"]
+        self.tools_path = robot_tools_script
+        base_path, _ = os.path.splitext(robot_tools_script)
+        robot_tools_mcp = base_path + "_mcp.py"
 
+        # Force the subprocess to use the same python interpreter as the parent
+        import sys
+        python_executable = sys.executable
+        
+        # Explicitly pass the current environment to the subprocess
+        current_env = os.environ.copy()
+        
         server_params = StdioServerParameters(
-            command="python", args=[robot_tools_mcp], env=None
+            command=python_executable, args=[robot_tools_mcp], env=current_env
         )
 
         stdio_transport = await self.exit_stack.enter_async_context(

@@ -23,7 +23,7 @@ model:
     - CLOUD_MODEL: "robobrain"                          # Model name for the cloud server
       CLOUD_TYPE: "default"                             # Deploy for the cloud server
       CLOUD_API_KEY: "YOUR-API-KEY"                     # API key for the cloud server
-      CLOUD_SERVER: "YOUR-CLOUD-SERVER-URL"             # URL of the cloud server
+      CLOUD_SERVER: "http://127.0.0.1:8001/v1"             # URL of the cloud server
       MAX_CHAT_MESSAGE: 50                              # Maximum number of chat messages to keep in memory
 
     - CLOUD_MODEL: "deepseekv3"                         # Model name for the cloud server

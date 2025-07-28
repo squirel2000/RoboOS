@@ -25,13 +25,16 @@ def publish_task():
         data = request.get_json()
         if not data or "task" not in data:
             return jsonify({"error": "Invalid request - 'task' field required"}), 400
-        if not isinstance(data["task"], list):
-            data["task"] = [data["task"]]
+        
+        tasks = data["task"]
+        if not isinstance(tasks, list):
+            tasks = [tasks]
 
-        for task in data["task"]:
+        for task in tasks:
             if not isinstance(task, str):
                 return jsonify({"error": "Invalid task format - must be a string"}), 400
-            subtask_list = master_agent.publish_global_task(data["task"])
+        
+        subtask_list = master_agent.publish_global_task(tasks)
 
         return jsonify(
             {
@@ -47,4 +50,4 @@ def publish_task():
 
 if __name__ == "__main__":
     # Run the Flask app
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5001)

@@ -1,27 +1,14 @@
 robot:
-
-  - robot_name: "robot_1"
-    robot_type: "realman_single"
+  - robot_name: "Robot_B"
+    robot_type: "mobile_robot"
     robot_state: "idle"
-    robot_tool: 
-      - "navigate_to_where"
-      - "detect_object"
-      - "grasp_object"
-      - "place_to_where"
-    current_position: "initialPosition"
-    navigate_position:
-      - "initialPosition"
-      - "customTable"
-      - "kitchenTable"
-      - "servingTable"
-
-  - robot_name: "robot_2"
-    robot_type: "songling_dual"
-    robot_state: "idle"
-    robot_tool: 
-      - "detect_object"
-      - "grasp_object"
-      - "place_to_where"
-    current_position: "kitchenTable"
-    navigate_position: 
-      - "kitchenTable"
+    robot_description: "A mobile robot equipped with a navigation system (ROS2) and a speaker. It is suitable for guiding people."
+    robot_tools:
+      - tool_name: "guide_patient_to_room"
+        tool_description: "Guides a person from the current location to a specified room number."
+        tool_usage: "guide_patient_to_room(room_number='xxx')"
+        tool_example: "guide_patient_to_room(room_number='001')"
+      - tool_name: "speak"
+        tool_description: "Speaks a given message out loud."
+        tool_usage: "speak(message='...')"
+        tool_example: "speak(message='Please follow me.')"

@@ -1,4 +1,5 @@
 import yaml
+import os
 from flag_scale.flagscale.agent.communication import Communicator
 
 
@@ -26,8 +27,12 @@ def convert_yaml_to_json(yaml_path: str):
 
 class Config:
     @classmethod
-    def load_config(cls, config_path="slaver/config.yaml"):
+    def load_config(cls):
         """Initialize configuration"""
+        # Get the directory where the current script is located
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        # Build the absolute path to the config file
+        config_path = os.path.join(script_dir, "config.yaml")
         with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
         return config

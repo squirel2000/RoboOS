@@ -1,0 +1,5 @@
+robot_name: "Robot_B"
+robot_type: "mobile_robot"
+robot_tools: "tools/hospital_tools.py" # This will be used by the slaver to find hospital_tools_mcp.py
+current_position: "Front Desk"
+navigate_position: ""

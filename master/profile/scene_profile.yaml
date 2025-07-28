@@ -1,28 +1,39 @@
-scene:
+# Hospital Scene Profile
+# This file provides the context for the RoboOS master planner.
+# It describes the environment, including locations, objects, and personnel.
 
-  - recep_name: "kitchenTable"
-    recep_type: "table"
-    recep_object:
-      - 'apple'
-      - 'pear'
-      - 'banana'
-      - 'knife'
-  
-  - recep_name: "customTable"
-    recep_type: "table"
-    recep_object:
-      - 'basket'
-      - 'plate'
-      - 'cup'
-  
-  - recep_name: "servingTable"
-    recep_type: "table"
-    recep_object:
-      - 'bowl'
-      - 'fork'
-      - 'spoon'
-  
-  - recep_name: "basket"
-    recep_type: "container"
-    recep_object:
-      - 'egg'
+scene:
+  name: "General Hospital - First Floor"
+  description: "The first floor of a general hospital containing various departments, rooms, and facilities. The primary robot task is to assist patients and staff."
+
+locations:
+  - name: "Entrance / Front Desk"
+    description: "The main entrance and reception area. Patients arrive here."
+    coordinates: { x: 0.0, y: 0.0, z: 0.0 } # Example coordinates
+  - name: "Room 001 - Gastroenterology"
+    description: "Consultation room for Dr. Alice, a specialist in stomach and digestive issues."
+    coordinates: { x: 10.0, y: 5.0, z: 0.0 } # Example coordinates
+  - name: "Room 002 - Cardiology"
+    description: "Consultation room for Dr. Bob, a specialist in heart-related issues."
+    coordinates: { x: 10.0, y: -5.0, z: 0.0 } # Example coordinates
+  - name: "Pharmacy"
+    description: "Where patients can pick up prescribed medication."
+    coordinates: { x: -8.0, y: 10.0, z: 0.0 } # Example coordinates
+
+personnel:
+  - name: "Dr. Alice"
+    role: "Doctor"
+    specialty: "Gastroenterology"
+    location: "Room 001"
+    description: "Expert in treating conditions like stomachaches, indigestion, and other digestive system disorders."
+  - name: "Dr. Bob"
+    role: "Doctor"
+    specialty: "Cardiology"
+    location: "Room 002"
+    description: "Expert in heart and blood vessel diseases."
+
+rules_and_procedures:
+  - "If a patient reports a stomachache, they should be guided to the Gastroenterology department (Room 001)."
+  - "If a patient reports chest pain, they should be guided to the Cardiology department (Room 002)."
+  - "All new patients should first be registered at the Front Desk."
+  - "Robots must navigate using the designated pathways and avoid restricted areas."

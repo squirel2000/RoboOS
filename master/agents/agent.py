@@ -34,11 +34,17 @@ class GlobalAgent:
             )
 
         # TODO This is only for mocking when SCENE_PROFILE_ENABLE set 'true', it should be removed in the future
-        for scene_info in self.planner.global_memory["scene_profile"]:
-            recep_name = scene_info["recep_name"]
-            self.communicator.register(
-                f"SCENE_INFO_{recep_name}", json.dumps(scene_info)
-            )
+        # The original code assumed a different structure. We adapt it to our hospital profile.
+        # We will register each location from the 'locations' list in our scene_profile.yaml
+        if "locations" in self.planner.global_memory["scene_profile"]:
+            for location_info in self.planner.global_memory["scene_profile"]["locations"]:
+                location_name = location_info.get("name")
+                if location_name:
+                    # Sanitize the name for use as a channel key
+                    channel_key = location_name.replace(" ", "_").replace("/", "")
+                    self.communicator.register(
+                        f"SCENE_INFO_{channel_key}", json.dumps(location_info)
+                    )
 
         self.logger.info(f"Configuration loaded from {config_path} ...")
         self.logger.info(f"Master Configuration:\n{self.config}")
