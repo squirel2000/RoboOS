@@ -49,7 +49,7 @@ tool:
 
 # Communicator Parameters
 communicator:
-  HOST: "127.0.0.1"                                     # Hostname or IP address of the server
+  HOST: "192.168.100.2"                                     # Hostname or IP address of the server
   PORT: 6379                                            # Port number of the server
   DB: 0                                                 # database number
   CLEAR: true                                           # Whether clear the database on startup
