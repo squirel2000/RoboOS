@@ -1,68 +1,83 @@
-import json
+import rclpy
+from rclpy.action import ActionClient
+from nav2_msgs.action import NavigateToPose
+from action_msgs.msg import GoalStatus
 
-# This is our "database" of doctors. In a real system, this would be a database query.
-HOSPITAL_DOCTORS = {
-    "Gastroenterology": {"name": "Dr. Smith", "room": "001"},
-    "Cardiology": {"name": "Dr. Jones", "room": "102"},
-    "Neurology": {"name": "Dr. Patel", "room": "205"},
-    "General Practice": {"name": "Dr. Williams", "room": "003"},
+# This dictionary maps symbolic location names to real-world coordinates.
+# In a real system, this could be loaded from a file or a database.
+LOCATION_COORDINATES = {
+    "Front Desk": {"x": 0.5, "y": 0.5, "z": 0.0, "w": 1.0},
+    "Room 001":   {"x": 1.5, "y": -0.5, "z": 0.0, "w": 1.0},
+    "Room 002":   {"x": 2.5, "y": -1.5, "z": 0.0, "w": 1.0},
+    "Pharmacy":   {"x": -1.0, "y": 2.0, "z": 0.0, "w": 1.0},
 }
 
-def find_doctor_by_specialty(specialty: str) -> str:
-    """
-    Finds an available doctor's name and room number based on their medical specialty.
-    
-    Args:
-        specialty (str): The medical specialty to search for.
-        
-    Returns:
-        str: A JSON string containing the doctor's name and room, or an error message.
-    """
-    print(f"Executing tool: find_doctor_by_specialty with specialty='{specialty}'")
-    if specialty in HOSPITAL_DOCTORS:
-        doctor_info = HOSPITAL_DOCTORS[specialty]
-        print(f"Found doctor: {doctor_info}")
-        return json.dumps(doctor_info)
-    else:
-        print(f"No doctor found for specialty: {specialty}")
-        return json.dumps({"error": f"No doctor found for specialty '{specialty}'."})
+class HospitalRos2Bridge:
+    def __init__(self, node):
+        self.node = node
+        self.nav_to_pose_client = ActionClient(self.node, NavigateToPose, 'navigate_to_pose')
 
-def guide_patient_to_room(room_number: str) -> str:
-    """
-    Dispatches a mobile robot to guide a patient to a specific room number.
-    This function would typically send a command to the RoboOS Slaver.
-    For the Master, we just confirm that the task has been initiated.
-    
-    Args:
-        room_number (str): The destination room number.
-        
-    Returns:
-        str: A JSON string confirming the task was dispatched.
-    """
-    print(f"Executing tool: guide_patient_to_room with room_number='{room_number}'")
-    # In a real implementation, this would publish a message to Redis for the Slaver.
-    # For now, it just confirms the plan step is complete.
-    result = {"status": "SUCCESS", "message": f"Task to guide patient to room {room_number} has been dispatched."}
-    return json.dumps(result)
+    def _send_nav_goal(self, location_name: str):
+        """Sends a navigation goal to a named location."""
+        self.node.get_logger().info(f'Attempting to navigate to symbolic location: {location_name}')
+        if location_name not in LOCATION_COORDINATES:
+            self.node.get_logger().error(f'Location "{location_name}" is unknown.')
+            return False
 
-def speak(message: str) -> str:
-    """
-    Allows the robot to say a message out loud.
-    
-    Args:
-        message (str): The message for the robot to speak.
-        
-    Returns:
-        str: A JSON string confirming the action.
-    """
-    print(f"Executing tool: speak with message='{message}'")
-    # This would also be a task for the Slaver.
-    result = {"status": "SUCCESS", "message": f"Speak task with message '{message}' dispatched."}
-    return json.dumps(result)
+        coords = LOCATION_COORDINATES[location_name]
+        goal_pose = NavigateToPose.Goal()
+        goal_pose.pose.header.frame_id = 'map'
+        goal_pose.pose.pose.position.x = coords["x"]
+        goal_pose.pose.pose.position.y = coords["y"]
+        goal_pose.pose.pose.orientation.z = coords["z"]
+        goal_pose.pose.pose.orientation.w = coords["w"]
 
-# We can create a dictionary to easily map tool names to functions
-HOSPITAL_TOOL_FUNCTIONS = {
-    "find_doctor_by_specialty": find_doctor_by_specialty,
-    "guide_patient_to_room": guide_patient_to_room,
-    "speak": speak,
-}
+        self.node.get_logger().info(f'Sending navigation goal for {location_name} at {coords}...')
+        self.nav_to_pose_client.wait_for_server()
+        goal_future = self.nav_to_pose_client.send_goal_async(goal_pose, feedback_callback=self.feedback_callback)
+        rclpy.spin_until_future_complete(self.node, goal_future)
+        goal_handle = goal_future.result()
+
+        if not goal_handle.accepted:
+            self.node.get_logger().info(f'Goal for {location_name} was rejected')
+            return False
+
+        self.node.get_logger().info(f'Goal for {location_name} accepted. Waiting for result...')
+        result_future = goal_handle.get_result_async()
+        rclpy.spin_until_future_complete(self.node, result_future)
+        status = result_future.result().status
+
+        if status == GoalStatus.STATUS_SUCCEEDED:
+            self.node.get_logger().info(f'Successfully navigated to {location_name}')
+            return True
+        else:
+            self.node.get_logger().warn(f'Navigation to {location_name} failed with status: {status}')
+            return False
+
+    def guide_patient(self, start_location: str, end_location: str):
+        """Guides a patient from a start location to an end location."""
+        self.node.get_logger().info(f'Received task to guide patient from {start_location} to {end_location}')
+        
+        # 1. Go to the patient's starting location
+        self.speak(f"On my way to the {start_location} to find you.")
+        if not self._send_nav_goal(start_location):
+            return f"Failed to navigate to the {start_location}. Aborting task."
+
+        # 2. Announce arrival and lead the way
+        self.speak(f"I have arrived at the {start_location}. Please follow me to the {end_location}.")
+        
+        # 3. Go to the final destination
+        if not self._send_nav_goal(end_location):
+            return f"Failed to navigate to the {end_location}."
+
+        self.speak(f"We have arrived at the {end_location}. Please let me know if you need anything else.")
+        return f"Successfully guided patient from {start_location} to {end_location}."
+
+    def feedback_callback(self, feedback_msg):
+        # You can process feedback here, e.g., distance remaining
+        pass
+
+    def speak(self, message: str):
+        self.node.get_logger().info(f'ROBOT SPEAKS: "{message}"')
+        # In a real system, this would call a ROS2 TTS service.
+        return 'Message spoken.'

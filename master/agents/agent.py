@@ -189,26 +189,41 @@ class GlobalAgent:
                 reasoning_and_subtasks = self._extract_json(response)
                 if reasoning_and_subtasks is not None:
                     break
-            self.logger.warning(
-                f"[WARNING] JSON extraction failed after {self.config['model']['MODEL_RETRY_PLANNING']} attempts."
-            )
-            self.logger.error(
-                f"[ERROR] Task ({task}) failed to be decomposed into subtasks, it will be ignored."
-            )
-            return False
+            if reasoning_and_subtasks is None:
+                self.logger.warning(
+                    f"[WARNING] JSON extraction failed after {self.config['model']['MODEL_RETRY_PLANNING']} attempts."
+                )
+                self.logger.error(
+                    f"[ERROR] Task ({task}) failed to be decomposed into subtasks, it will be ignored."
+                )
+                return False, None
 
-        self.logger.info(f"Received reasoning and subtasks:\n{reasoning_and_subtasks}")
+        # Dispatch the subtasks in a background thread
+        dispatch_thread = threading.Thread(
+            target=self._dispatch_subtasks,
+            args=(reasoning_and_subtasks, task)
+        )
+        dispatch_thread.daemon = True
+        dispatch_thread.start()
+
+        self.logger.info(f"Task [{task}] has been received and is being processed.")
+        return reasoning_and_subtasks
+
+    def _dispatch_subtasks(self, reasoning_and_subtasks, task):
+        """Dispatches subtasks and waits for sequential execution if needed."""
+        self.logger.info(f"Dispatching subtasks for task: {task}")
         subtask_list = reasoning_and_subtasks.get("subtask_list", [])
         grouped_tasks = self._group_tasks_by_order(subtask_list)
         task_id = str(uuid.uuid4()).replace("-", "")
         order_flag = "false" if len(grouped_tasks.keys()) == 1 else "true"
+
         for task_count, (order, group_task) in enumerate(grouped_tasks.items()):
             self.logger.info(f"Sending task group {order}:\n{group_task}")
-            for task in group_task:
-                robot_name = task.get("robot_name")
+            for task_item in group_task:
+                robot_name = task_item.get("robot_name")
                 subtask_data = {
                     "task_id": task_id,
-                    "task": task["subtask"],
+                    "task": task_item["subtask"],
                     "order": order_flag,
                 }
                 self.communicator.send(
@@ -217,13 +232,14 @@ class GlobalAgent:
                 self.communicator.update_json_field_py(
                     f"ROBOT_INFO_{robot_name}", "robot_state", "busy"
                 )
-            # wait for all channels response
+            
+            # Wait for all channels response if the tasks are sequential
             if task_count + 1 < len(grouped_tasks.keys()):
                 channels = [
-                    f"{task.get('robot_name')}_to_roboos" for task in group_task
+                    f"{task_item.get('robot_name')}_to_roboos" for task_item in group_task
                 ]
+                self.logger.info(f"Waiting for responses from channels: {channels}")
                 self.communicator.wait_for_all_channels_response(
                     channels=channels, task_id=task_id
                 )
-        self.logger.info(f"Task_id ({task_id}) [{task}] has been sent to all agents.")
-        return reasoning_and_subtasks
+        self.logger.info(f"All subtasks for task_id ({task_id}) [{task}] have been sent.")
